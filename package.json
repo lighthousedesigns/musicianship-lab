@@ -1,0 +1,17 @@
+{
+  "name": "musicianship-lab",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A browser-based collection of practical keyboard, fretboard, and music-theory trainers.",
+  "scripts": {
+    "dev": "node scripts/serve.mjs --root outputs --base /",
+    "build": "node scripts/build.mjs",
+    "preview": "node scripts/serve.mjs --root dist --base /musicianship-lab/",
+    "test": "node tests/voice-leading.test.js",
+    "check:pages": "node scripts/check-pages.mjs",
+    "verify": "npm run build && npm test && npm run check:pages"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

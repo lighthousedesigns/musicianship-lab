@@ -1,0 +1,11 @@
+{
+  "repositoryName": "musicianship-lab",
+  "basePath": "/musicianship-lab/",
+  "publicUrl": "https://lighthousedesigns.github.io/musicianship-lab/",
+  "directRoutes": [
+    "keyboard/chord-practice/",
+    "fretboard/voice-leading/",
+    "fretboard/triad-shapes/study/",
+    "fretboard/triad-shapes/quiz/"
+  ]
+}
