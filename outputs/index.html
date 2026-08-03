@@ -4367,6 +4367,10 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         first: "First inversion",
         second: "Second inversion"
       });
+      const TRIAD_SHAPE_ROOT_NAMES = Object.freeze([
+        "C", "D-flat", "D", "E-flat", "E", "F",
+        "F-sharp", "G", "A-flat", "A", "B-flat", "B"
+      ]);
 
       function triadShapeToneLabel(tone) {
         return { root: "R", third: "3", minorThird: "♭3", fifth: "5" }[tone] || "";
@@ -6623,6 +6627,12 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         return diagram;
       }
 
+      function triadShapeChordName(shape, diagram = buildTriadShapeDiagramData(shape)) {
+        const root = diagram.strings.find(note => note.isRoot);
+        const rootName = root ? TRIAD_SHAPE_ROOT_NAMES[root.pitchClass] : "";
+        return `${rootName} ${shape.quality}`.trim();
+      }
+
       function filterTriadShapes(settings = {}) {
         const stringSet = TRIAD_SHAPE_STRING_SETS.includes(settings.stringSet)
           ? settings.stringSet
@@ -6928,13 +6938,13 @@ vii° — B Diminished — 2nd Inversion | F B D`;
           ? `Question ${questionNumber}`
           : `Question ${questionNumber} of ${configuredTotal}`;
         triadShapesQuizScore.textContent = `Score: ${state.correct} correct`;
+        const diagram = buildTriadShapeDiagramData(shape);
         triadShapesQuizIdentity.textContent =
-          `${shape.stringSet} · ${shape.quality === "major" ? "Major" : "Minor"} · ${TRIAD_SHAPE_INVERSION_NAMES[shape.inversion]}`;
+          `${triadShapeChordName(shape, diagram)} · ${TRIAD_SHAPE_INVERSION_NAMES[shape.inversion]}`;
         triadShapesQuizPrompt.textContent = triadShapeQuizPrompt(entry.targetTone);
         triadShapesQuizFeedback.textContent = "";
         triadShapesQuizNextButton.hidden = !state.answered;
         if (state.answered) {
-          const diagram = buildTriadShapeDiagramData(shape);
           const selected = diagram.strings.find(note => note.markerId === state.selectedMarkerId) ||
             diagram.strings.find(note => note.chordTone === state.selectedTone);
           const target = diagram.strings.find(note => note.chordTone === entry.targetTone);
@@ -6955,7 +6965,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
             answeredMarkerId: selected?.markerId
           });
         } else {
-          renderFretboardDiagram(buildTriadShapeDiagramData(shape), triadShapesQuizDiagram, {
+          renderFretboardDiagram(diagram, triadShapesQuizDiagram, {
             compact: false,
             interactiveMarkers: true,
             revealMarkerLabels: false,
@@ -15119,6 +15129,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         triadShapeToneLabel,
         triadShapeToneOrder,
         buildTriadShapeDiagramData,
+        triadShapeChordName,
         filterTriadShapes,
         buildTriadShapeQuizDeck,
         evaluateTriadShapeQuizAnswer,
