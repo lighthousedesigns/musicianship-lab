@@ -70,22 +70,22 @@ That command builds the site, runs the existing music-theory and interaction reg
 
 - `outputs/index.html` — the complete application source and local standalone file.
 - `tests/voice-leading.test.js` — dependency-free Node regression suite.
+- `docs/PRODUCT.md` — current product behavior, tools, conventions, MIDI behavior, persistence, and limitations.
+- `docs/DECISIONS.md` — durable product and architecture decisions with rationale.
 - `deployment.config.json` — canonical repository name, Pages base path, public URL, and generated direct routes.
 - `scripts/build.mjs` — dependency-free production build.
 - `scripts/serve.mjs` — local static server used for development and preview.
 - `scripts/check-pages.mjs` — artifact verification of the production base path and direct routes.
 - `.github/workflows/deploy-pages.yml` — build, test, and GitHub Pages deployment workflow.
-- `AGENTS.md` — product, architecture, theory, testing, and maintenance guidance for future Codex work.
+- `AGENTS.md` — concise repository, command, deployment, and do-not-break guidance for future Codex work.
 
 ## Publish with GitHub Pages
 
-The planned GitHub repository is `musicianship-lab` under the `lighthousedesigns` account. The local folder does not need to have the same name. This working folder is not currently a Git repository, so publishing still requires the normal one-time repository setup:
+The repository is `lighthousedesigns/musicianship-lab`. This working folder is on `main`, tracks `origin/main`, and uses `https://github.com/lighthousedesigns/musicianship-lab.git` as its remote. The local folder does not need to have the same name.
 
-1. Create a new public GitHub repository named `musicianship-lab`. Do not initialize it with replacement project files.
-2. Initialize this folder as a Git repository, commit the existing files, set the default branch to `main`, add the GitHub repository as `origin`, and push `main`. GitHub Desktop can perform these steps if preferred.
-3. In the GitHub repository, open **Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**.
-4. Push to `main`, or run **Build, test, and deploy GitHub Pages** manually from the Actions tab.
-5. After the workflow succeeds, open <https://lighthousedesigns.github.io/musicianship-lab/>.
+1. In the GitHub repository, open **Settings → Pages** and confirm **Build and deployment → Source** is **GitHub Actions**.
+2. Push to `main`, or run **Build, test, and deploy GitHub Pages** manually from the Actions tab.
+3. After the workflow succeeds, open <https://lighthousedesigns.github.io/musicianship-lab/>.
 
 The workflow does not need repository secrets. It uses GitHub’s built-in Pages permissions to upload and deploy the generated `dist/` artifact.
 
