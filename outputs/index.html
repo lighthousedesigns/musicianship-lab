@@ -1939,6 +1939,14 @@
       gap: 12px 20px;
     }
 
+    .triad-shapes-study-actions,
+    .fretboard-voice-toolbar-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 12px;
+    }
+
     .triad-shapes-header h1,
     .triad-shapes-panel h2,
     .triad-shapes-card h3,
@@ -2035,6 +2043,8 @@
     }
 
     .triad-shapes-card-lowest strong { color: var(--ink); }
+
+    .fretboard-print-sheet { display: none; }
 
     .triad-shapes-question {
       display: grid;
@@ -2709,6 +2719,152 @@
 
     @media (prefers-reduced-motion: reduce) {
       button:active:not(:disabled) { transform: none; }
+    }
+
+    @media print {
+      @page {
+        size: landscape;
+        margin: 9mm;
+      }
+
+      body.fretboard-print-active {
+        background: #fff;
+        color: #17241f;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      body.fretboard-print-active main > :not(#fretboardPrintSheet) {
+        display: none !important;
+      }
+
+      body.fretboard-print-active #fretboardPrintSheet {
+        display: block !important;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+
+      .fretboard-print-header {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: end;
+        gap: 3mm 8mm;
+        margin-bottom: 5mm;
+        border-bottom: 2px solid #165f48;
+        padding-bottom: 3mm;
+      }
+
+      .fretboard-print-brand,
+      .fretboard-print-title,
+      .fretboard-print-context,
+      .fretboard-print-count {
+        margin: 0;
+      }
+
+      .fretboard-print-brand {
+        color: #165f48;
+        font-size: 8pt;
+        font-weight: 850;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .fretboard-print-title {
+        margin-top: 1mm;
+        font-size: 22pt;
+        line-height: 1.05;
+      }
+
+      .fretboard-print-context {
+        margin-top: 1.5mm;
+        color: #52625b;
+        font-size: 9.5pt;
+        font-weight: 700;
+        line-height: 1.35;
+      }
+
+      .fretboard-print-count {
+        border: 1px solid #b9c6c0;
+        border-radius: 999px;
+        padding: 1.5mm 3mm;
+        color: #52625b;
+        font-size: 8.5pt;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .fretboard-print-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        align-items: start;
+        gap: 4mm;
+      }
+
+      .fretboard-print-grid[data-columns="1"] {
+        grid-template-columns: minmax(0, 88mm);
+        justify-content: center;
+      }
+
+      .fretboard-print-grid[data-columns="2"] {
+        grid-template-columns: repeat(2, minmax(0, 88mm));
+        justify-content: center;
+      }
+
+      .fretboard-print-grid[data-columns="4"] {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 3mm;
+      }
+
+      .fretboard-print-card {
+        display: grid;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        gap: 1.5mm;
+        min-width: 0;
+        border: 1px solid #b9c6c0;
+        border-radius: 3mm;
+        padding: 3mm;
+        background: #fff;
+        color: #17241f;
+      }
+
+      .fretboard-print-card h3,
+      .fretboard-print-card p {
+        margin: 0;
+      }
+
+      .fretboard-print-card h3 {
+        font-size: 10.5pt;
+        line-height: 1.25;
+      }
+
+      .fretboard-print-card .triad-shapes-card-meta,
+      .fretboard-print-card .triad-shapes-card-lowest,
+      .fretboard-print-card .fretboard-voice-step-meta,
+      .fretboard-print-card .fretboard-voice-movement {
+        color: #52625b;
+        font-size: 7.8pt;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+
+      .fretboard-print-card .chord-diagram,
+      .fretboard-print-card .fretboard-voice-compact-diagram {
+        width: 100%;
+        max-width: none;
+      }
+
+      .fretboard-print-card .fretboard-svg,
+      .fretboard-print-card .fretboard-voice-compact-diagram .fretboard-svg {
+        display: block;
+        width: 100%;
+        max-height: 46mm;
+      }
+
+      .fretboard-print-grid[data-columns="4"] .fretboard-svg {
+        max-height: 42mm;
+      }
     }
   </style>
 </head>
@@ -3914,7 +4070,10 @@
             <h2 id="triadShapesStudyHeading">Study movable shapes</h2>
             <p>The lowest chord tone determines the inversion.</p>
           </div>
-          <span id="triadShapesStudyCount" class="triad-shapes-count" aria-live="polite"></span>
+          <div class="triad-shapes-study-actions">
+            <span id="triadShapesStudyCount" class="triad-shapes-count" aria-live="polite"></span>
+            <button id="triadShapesPrintButton" type="button">Print Shapes</button>
+          </div>
         </div>
         <div class="triad-shapes-filters">
           <label for="triadShapesStudyStringSet">String Set<select id="triadShapesStudyStringSet"><option value="EAD">EAD</option><option value="ADG">ADG</option><option value="DGB">DGB</option><option value="GBE" selected>GBE</option></select></label>
@@ -3994,7 +4153,10 @@
           </div>
           <p id="fretboardVoiceViewDescription" class="fretboard-voice-view-description">See the complete voice-led route and play through it freely.</p>
         </div>
-        <button id="fretboardVoiceRevealRouteButton" type="button" hidden>Reveal Diagrams</button>
+        <div class="fretboard-voice-toolbar-actions">
+          <button id="fretboardVoiceRevealRouteButton" type="button" hidden>Reveal Diagrams</button>
+          <button id="fretboardVoicePrintButton" type="button">Print Route</button>
+        </div>
       </div>
 
       <p id="fretboardVoiceRouteMessage" class="fretboard-voice-empty" hidden></p>
@@ -4202,6 +4364,18 @@
           </div>
         </section>
       </div>
+    </section>
+
+    <section id="fretboardPrintSheet" class="fretboard-print-sheet" aria-hidden="true" hidden>
+      <header class="fretboard-print-header">
+        <div>
+          <p class="fretboard-print-brand">Musicianship Lab · Fretboard</p>
+          <h1 id="fretboardPrintTitle" class="fretboard-print-title"></h1>
+          <p id="fretboardPrintContext" class="fretboard-print-context"></p>
+        </div>
+        <p id="fretboardPrintCount" class="fretboard-print-count"></p>
+      </header>
+      <div id="fretboardPrintGrid" class="fretboard-print-grid"></div>
     </section>
   </main>
 
@@ -4545,6 +4719,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       const triadShapesStudyQuality = document.getElementById("triadShapesStudyQuality");
       const triadShapesStudyInversion = document.getElementById("triadShapesStudyInversion");
       const triadShapesStudyCount = document.getElementById("triadShapesStudyCount");
+      const triadShapesPrintButton = document.getElementById("triadShapesPrintButton");
       const triadShapesStudyGrid = document.getElementById("triadShapesStudyGrid");
       const triadShapesQuizPanel = document.getElementById("triadShapesQuizPanel");
       const triadShapesQuizSetup = document.getElementById("triadShapesQuizSetup");
@@ -4913,8 +5088,14 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       const fretboardVoiceRecallButton = document.getElementById("fretboardVoiceRecallButton");
       const fretboardVoiceViewDescription = document.getElementById("fretboardVoiceViewDescription");
       const fretboardVoiceRevealRouteButton = document.getElementById("fretboardVoiceRevealRouteButton");
+      const fretboardVoicePrintButton = document.getElementById("fretboardVoicePrintButton");
       const fretboardVoiceRouteMessage = document.getElementById("fretboardVoiceRouteMessage");
       const fretboardVoiceRoute = document.getElementById("fretboardVoiceRoute");
+      const fretboardPrintSheet = document.getElementById("fretboardPrintSheet");
+      const fretboardPrintTitle = document.getElementById("fretboardPrintTitle");
+      const fretboardPrintContext = document.getElementById("fretboardPrintContext");
+      const fretboardPrintCount = document.getElementById("fretboardPrintCount");
+      const fretboardPrintGrid = document.getElementById("fretboardPrintGrid");
       const fretboardVoiceSetupRouteButton = document.getElementById("fretboardVoiceSetupRouteButton");
       const fretboardVoiceSetupLibraryButton = document.getElementById("fretboardVoiceSetupLibraryButton");
       const fretboardVoiceBrowseShapesButton = document.getElementById("fretboardVoiceBrowseShapesButton");
@@ -5098,6 +5279,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       let fretboardVoiceMode = "study";
       let triadShapesMode = "study";
       let triadShapesQuizState = null;
+      let fretboardPrintPreviousTitle = "";
       let fretboardVoiceRecallRevealed = false;
       let fretboardVoiceInternalView = "route";
       let fretboardVoiceRouteReturnSurface = "setup";
@@ -6907,6 +7089,108 @@ vii° — B Diminished — 2nd Inversion | F B D`;
           triadShapesStudyGrid.appendChild(card);
         });
         triadShapesStudyCount.textContent = `${shapes.length} ${shapes.length === 1 ? "shape" : "shapes"}`;
+        triadShapesPrintButton.disabled = shapes.length === 0;
+      }
+
+      function createFretboardPrintCard({ heading, meta, diagram, lowest = "", movement = "" }) {
+        const card = document.createElement("article");
+        card.className = "fretboard-print-card";
+        const title = document.createElement("h3");
+        title.textContent = heading;
+        const detail = document.createElement("p");
+        detail.className = "fretboard-voice-step-meta";
+        detail.textContent = meta;
+        const diagramWrap = document.createElement("div");
+        diagramWrap.className = "fretboard-voice-compact-diagram";
+        card.appendChild(title);
+        card.appendChild(detail);
+        card.appendChild(diagramWrap);
+        renderFretboardDiagram(diagram, diagramWrap, { compact: true });
+        if (lowest) {
+          const lowestText = document.createElement("p");
+          lowestText.className = "triad-shapes-card-lowest";
+          lowestText.textContent = lowest;
+          card.appendChild(lowestText);
+        }
+        if (movement) {
+          const movementText = document.createElement("p");
+          movementText.className = "fretboard-voice-movement";
+          movementText.textContent = movement;
+          card.appendChild(movementText);
+        }
+        return card;
+      }
+
+      function openFretboardPrintSheet({ title, context, cards }) {
+        if (!cards.length || typeof window.print !== "function") return;
+        fretboardPrintGrid.replaceChildren();
+        cards.forEach(card => fretboardPrintGrid.appendChild(card));
+        const count = cards.length;
+        fretboardPrintGrid.dataset.columns = count <= 1 ? "1" : count <= 2 ? "2" : count <= 6 ? "3" : "4";
+        fretboardPrintTitle.textContent = title;
+        fretboardPrintContext.textContent = context;
+        fretboardPrintCount.textContent = `${count} ${count === 1 ? "shape" : "shapes"}`;
+        fretboardPrintSheet.hidden = false;
+        fretboardPrintSheet.setAttribute("aria-hidden", "false");
+        document.body.classList.add("fretboard-print-active");
+        fretboardPrintPreviousTitle = document.title;
+        document.title = `Musicianship Lab — ${title}`;
+        window.print();
+        window.setTimeout(clearFretboardPrintSheet, 0);
+      }
+
+      function clearFretboardPrintSheet() {
+        if (!document.body.classList.contains("fretboard-print-active")) return;
+        document.body.classList.remove("fretboard-print-active");
+        fretboardPrintSheet.hidden = true;
+        fretboardPrintSheet.setAttribute("aria-hidden", "true");
+        fretboardPrintGrid.replaceChildren();
+        if (fretboardPrintPreviousTitle) document.title = fretboardPrintPreviousTitle;
+        fretboardPrintPreviousTitle = "";
+      }
+
+      function printTriadShapesStudy() {
+        const settings = currentTriadShapesStudySettings();
+        const shapes = filterTriadShapes(settings);
+        const quality = settings.quality === "both"
+          ? "Major and minor"
+          : settings.quality === "major" ? "Major" : "Minor";
+        const inversion = settings.inversion === "all"
+          ? "All inversions"
+          : TRIAD_SHAPE_INVERSION_NAMES[settings.inversion];
+        const cards = shapes.map(shape => {
+          const lowestLabel = triadShapeToneLabel(shape.markers[0].chordTone);
+          return createFretboardPrintCard({
+            heading: `${shape.quality === "major" ? "Major" : "Minor"} · ${TRIAD_SHAPE_INVERSION_NAMES[shape.inversion]}`,
+            meta: `${shape.strings.join("–")} · Movable shape`,
+            diagram: buildTriadShapeDiagramData(shape),
+            lowest: `Lowest tone: ${lowestLabel} · ${TRIAD_SHAPE_INVERSION_NAMES[shape.inversion]}`
+          });
+        });
+        openFretboardPrintSheet({
+          title: "Triad Shapes",
+          context: `${settings.stringSet} strings · ${quality} · ${inversion}`,
+          cards
+        });
+      }
+
+      function printFretboardVoiceRoute() {
+        const result = currentFretboardVoiceRoute;
+        const diagramsVisible = fretboardVoiceMode !== "recall" || fretboardVoiceRecallRevealed;
+        if (!result?.route?.length || !diagramsVisible) return;
+        const cards = result.route.map((step, index) => createFretboardPrintCard({
+          heading: `${index + 1}. ${step.romanNumeral} — ${step.chordSymbol}`,
+          meta: `${step.chordName} · ${step.inversionName} · ${step.stringSet}`,
+          diagram: step.diagram,
+          movement: fretboardVoiceShowMovement.checked && step.movementFromPrevious
+            ? formatGuitarMovementSummary(step.movementFromPrevious, step.stringSet)
+            : ""
+        }));
+        openFretboardPrintSheet({
+          title: "Voice Leading Route",
+          context: `${result.key.displayName} · ${result.stringSet} · Progression ${result.degrees.join("–")} · Total movement ${result.cost.totalMovement} frets`,
+          cards
+        });
       }
 
       function currentTriadShapesQuizEntry() {
@@ -13556,6 +13840,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         const result = currentFretboardVoiceRoute;
         fretboardVoiceRoute.replaceChildren();
         const hasRoute = Boolean(result && result.route && result.route.length);
+        fretboardVoicePrintButton.disabled = !hasRoute;
         fretboardVoiceRouteMessage.hidden = hasRoute;
         if (!hasRoute) {
           fretboardVoiceRouteMessage.textContent = result && result.error
@@ -13592,6 +13877,10 @@ vii° — B Diminished — 2nd Inversion | F B D`;
           : "Reveal Diagrams";
 
         const hideDiagrams = fretboardVoiceMode === "recall" && !fretboardVoiceRecallRevealed;
+        fretboardVoicePrintButton.disabled = hideDiagrams;
+        fretboardVoicePrintButton.title = hideDiagrams
+          ? "Reveal the route diagrams before printing."
+          : "Print the visible route or save it as a PDF.";
         result.route.forEach((step, index) => {
           const card = document.createElement("button");
           card.type = "button";
@@ -14481,6 +14770,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       });
       triadShapesStudyButton.addEventListener("click", () => setTriadShapesMode("study"));
       triadShapesQuizButton.addEventListener("click", () => setTriadShapesMode("quiz"));
+      triadShapesPrintButton.addEventListener("click", printTriadShapesStudy);
       [triadShapesStudyStringSet, triadShapesStudyQuality, triadShapesStudyInversion]
         .forEach(input => input.addEventListener("change", () => {
           renderTriadShapesStudy();
@@ -14604,6 +14894,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       fretboardVoiceStudyButton.addEventListener("click", () => setFretboardVoiceMode("study"));
       fretboardVoiceRecallButton.addEventListener("click", () => setFretboardVoiceMode("recall"));
       fretboardVoiceRevealRouteButton.addEventListener("click", toggleFretboardVoiceRecallReveal);
+      fretboardVoicePrintButton.addEventListener("click", printFretboardVoiceRoute);
       fretboardVoiceSettingsButton.addEventListener("click", returnToFretboardVoiceSettings);
       fretboardVoiceDetailClose.addEventListener("click", closeFretboardVoiceDetail);
       fretboardVoiceAutomaticInversionDismiss.addEventListener("click", () => {
@@ -14984,6 +15275,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         if (playSessionTimerId !== null) window.clearInterval(playSessionTimerId);
         stopKeyStudyPlayThrough();
       });
+      window.addEventListener("afterprint", clearFretboardPrintSheet);
 
       const MUSICIANSHIP_ENGINE = Object.freeze({
         music: Object.freeze({

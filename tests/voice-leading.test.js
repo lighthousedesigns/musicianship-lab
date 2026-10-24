@@ -13,6 +13,8 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
   const timeouts = new Map();
   const storage = existingStorage;
   const documentListeners = {};
+  const windowListeners = {};
+  let printCallCount = 0;
   const choices = {
     mode: "triad",
     timing: "10000",
@@ -214,7 +216,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     "shapeLibraryDetailTab", "shapeLibraryDetailStartButton",
     "triadShapesScreen", "triadShapesHeading", "triadShapesStudyButton", "triadShapesQuizButton",
     "triadShapesStudyPanel", "triadShapesStudyStringSet", "triadShapesStudyQuality",
-    "triadShapesStudyInversion", "triadShapesStudyCount", "triadShapesStudyGrid",
+    "triadShapesStudyInversion", "triadShapesStudyCount", "triadShapesPrintButton", "triadShapesStudyGrid",
     "triadShapesQuizPanel", "triadShapesQuizSetup", "triadShapesQuizStringSet",
     "triadShapesQuizQuality", "triadShapesQuizInversion", "triadShapesQuizTone",
     "triadShapesQuizLength", "triadShapesQuizStartButton", "triadShapesQuizQuestion",
@@ -241,8 +243,10 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     "fretboardVoiceAutomaticInversionDismiss",
     "fretboardVoiceScreenRouteButton", "fretboardVoiceScreenLibraryButton",
     "fretboardVoiceStudyButton", "fretboardVoiceRecallButton",
-    "fretboardVoiceViewDescription", "fretboardVoiceRevealRouteButton",
+    "fretboardVoiceViewDescription", "fretboardVoiceRevealRouteButton", "fretboardVoicePrintButton",
     "fretboardVoiceRouteMessage", "fretboardVoiceRoute",
+    "fretboardPrintSheet", "fretboardPrintTitle", "fretboardPrintContext",
+    "fretboardPrintCount", "fretboardPrintGrid",
     "fretboardVoiceSettingsButton", "fretboardVoiceDetail",
     "fretboardVoiceDetailTitle", "fretboardVoiceDetailIdentity",
     "fretboardVoiceDetailClose", "fretboardVoiceDetailDiagram",
@@ -280,6 +284,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     id,
     new FakeElement(id, id.includes("Button") || ["startButton", "nextButton", "restartButton"].includes(id) ? "BUTTON" : "DIV")
   ]));
+  elements.fretboardPrintSheet.hidden = true;
   elements.midiControls.hidden = true;
   elements.midiAnswerMode.value = "exact-voicing";
   elements.midiShowDetected.checked = true;
@@ -470,6 +475,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
   const document = {
     title: "Triad Trainer",
     activeElement: null,
+    body: new FakeElement("body", "BODY"),
     getElementById(id) {
       return elements[id];
     },
@@ -522,7 +528,12 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     clearTimeout(id) {
       timeouts.delete(id);
     },
-    addEventListener() {},
+    addEventListener(type, handler) {
+      windowListeners[type] = handler;
+    },
+    print() {
+      printCallCount += 1;
+    },
     confirm() {
       return true;
     }
@@ -561,6 +572,12 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     modeInputs,
     playDifficultyInputs,
     storage,
+    getPrintCallCount() {
+      return printCallCount;
+    },
+    dispatchWindowEvent(type) {
+      if (windowListeners[type]) windowListeners[type]();
+    },
     getActiveElement() {
       return document.activeElement;
     },
@@ -837,6 +854,19 @@ assert(studySvgParts.some(element => element.tagName === "CIRCLE" && element.att
 assert(!studySvgParts.some(element => element.tagName === "BUTTON"), "non-interactive Study diagrams keep the shared renderer's ordinary marker path");
 const studySvg = studySvgParts.find(element => element.tagName === "SVG");
 assert(studySvg.attributes["aria-label"].includes("Strings low to high: G, B, E") && studySvg.attributes["aria-label"].includes("♭3"), "Study diagrams expose string names and chord-tone labels accessibly");
+assert.strictEqual(triadShapesStudyUi.elements.triadShapesPrintButton.disabled, false, "the filtered Study set can be printed");
+triadShapesStudyUi.elements.triadShapesPrintButton.dispatch("click");
+assert.strictEqual(triadShapesStudyUi.getPrintCallCount(), 1, "Print Shapes opens the browser print dialog once");
+assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintSheet.hidden, false, "Print Shapes prepares the dedicated print-only sheet");
+assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintTitle.textContent, "Triad Shapes", "the print sheet identifies the Study tool");
+assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintContext.textContent, "GBE strings · Minor · First inversion", "the print sheet records the active Study filters");
+assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintGrid.children.length, 1, "only the one currently filtered Study shape is printed");
+assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintGrid.dataset.columns, "1", "a single printed shape uses the centered one-column layout");
+assert(!studyDescendants(triadShapesStudyUi.elements.fretboardPrintGrid).some(element => element.tagName === "BUTTON"), "printed Study diagrams remain noninteractive");
+triadShapesStudyUi.dispatchWindowEvent("afterprint");
+assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintSheet.hidden, true, "the print-only sheet is cleared after printing");
+assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintGrid.children.length, 0, "printed shape content does not remain in the application DOM after printing");
+assert(/@media print[\s\S]*?body\.fretboard-print-active main > :not\(#fretboardPrintSheet\)[\s\S]*?display: none !important;/.test(html), "print media hides application chrome and leaves only the prepared shape sheet");
 
 const quizDeck = api.buildTriadShapeQuizDeck({
   stringSet: "all",
@@ -4301,6 +4331,15 @@ assert.strictEqual(fretboardVoiceUi.elements.fretboardVoiceRoute.children.length
 assert(fretboardVoiceUi.elements.fretboardVoiceRouteSummary.textContent.includes("C major · GBE"), "the route header keeps key and string-set context concise");
 assert(fretboardVoiceUi.elements.fretboardVoiceRouteSummary.textContent.includes("Selected automatically"), "the route summary identifies an automatic starting shape");
 assert(fretboardVoiceUi.elements.fretboardVoiceRouteSummary.textContent.includes(`Frets ${selectedGuitarStart.join("–")}`), "the route summary shows the selected starting frets");
+assert.strictEqual(fretboardVoiceUi.elements.fretboardVoicePrintButton.disabled, false, "a visible generated route can be printed");
+fretboardVoiceUi.elements.fretboardVoicePrintButton.dispatch("click");
+assert.strictEqual(fretboardVoiceUi.getPrintCallCount(), 1, "Print Route opens the browser print dialog once");
+assert.strictEqual(fretboardVoiceUi.elements.fretboardPrintTitle.textContent, "Voice Leading Route", "the print sheet identifies the generated route");
+assert(fretboardVoiceUi.elements.fretboardPrintContext.textContent.includes("C major · GBE · Progression"), "the printed route keeps key, string-set, and progression context");
+assert.strictEqual(fretboardVoiceUi.elements.fretboardPrintGrid.children.length, stableGuitarRoute.route.length, "the print sheet contains exactly the visible generated route shapes");
+assert.strictEqual(fretboardVoiceUi.elements.fretboardPrintGrid.dataset.columns, stableGuitarRoute.route.length <= 6 ? "3" : "4", "the printed route chooses a compact grid for its shape count");
+assert(!studyDescendants(fretboardVoiceUi.elements.fretboardPrintGrid).some(element => element.tagName === "BUTTON"), "printed route cards contain diagrams without interactive controls");
+fretboardVoiceUi.dispatchWindowEvent("afterprint");
 fretboardVoiceUi.elements.fretboardVoiceScreenLibraryButton.dispatch("click");
 assert.strictEqual(fretboardVoiceUi.elements.keyStudyScreen.hidden, false, "a generated route can open Shape Library directly");
 assert.strictEqual(fretboardVoiceUi.api.getCurrentFretboardVoiceRoute(), stableGuitarRoute, "opening Shape Library does not regenerate or replace the route");
@@ -4322,9 +4361,11 @@ assert.strictEqual(fretboardVoiceUi.api.getFretboardVoiceMode(), "study", "the r
 fretboardVoiceUi.elements.fretboardVoiceRecallButton.dispatch("click");
 assert.strictEqual(fretboardVoiceUi.api.getFretboardVoiceMode(), "recall", "Recall mode activates without a new route");
 assert(fretboardVoiceUi.elements.fretboardVoiceRoute.children.every(card => card.children.length === 2), "Recall hides diagrams and exact frets while retaining chord labels");
+assert.strictEqual(fretboardVoiceUi.elements.fretboardVoicePrintButton.disabled, true, "an unrevealed Recall route cannot print hidden diagrams");
 fretboardVoiceUi.elements.fretboardVoiceRevealRouteButton.dispatch("click");
 assert(fretboardVoiceUi.elements.fretboardVoiceRoute.children.every(card => card.children.length >= 3), "Reveal Diagrams restores the existing route diagrams");
 assert.strictEqual(fretboardVoiceUi.api.getCurrentFretboardVoiceRoute(), stableGuitarRoute, "Reveal Diagrams does not regenerate the route");
+assert.strictEqual(fretboardVoiceUi.elements.fretboardVoicePrintButton.disabled, false, "revealing Recall diagrams makes that same route printable");
 fretboardVoiceUi.elements.fretboardVoiceStudyButton.dispatch("click");
 assert.strictEqual(fretboardVoiceUi.api.getFretboardVoiceMode(), "study", "Study remains available after Recall");
 assert.strictEqual(fretboardVoiceUi.api.getCurrentFretboardVoiceRoute(), stableGuitarRoute, "switching between Recall and Study preserves the generated route");

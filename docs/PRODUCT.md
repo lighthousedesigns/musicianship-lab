@@ -103,6 +103,8 @@ Route has two views:
 - **Study** shows every compact diagram at once with no tracked playhead.
 - **Recall** keeps the same route but hides diagrams and exact frets until the user reveals them.
 
+**Print Route** opens the browser print dialog with a landscape, print-only sheet containing exactly the route diagrams currently visible. Application navigation and controls are excluded. An unrevealed Recall route cannot be printed until its diagrams are revealed; the browser print dialog can print the sheet or save it as a PDF.
+
 Each route card can open a detail dialog containing its diagram, notes, chord-tone roles, TAB, and movement from the previous and to the next shape. **Back to Settings** preserves the musical choices. Each voice stays on the same string, and route optimization minimizes total fret movement across the complete sequence rather than greedily choosing only the next chord.
 
 ### Shape Library
@@ -122,6 +124,8 @@ Triad Shapes uses one canonical set of exactly 24 neutral movable shapes:
 The neutral diagrams use reference frets; moving the entire shape transposes it.
 
 **Study** filters one string set by quality and inversion and labels chord tones as R, 3 or ♭3, and 5.
+
+**Print Shapes** opens the browser print dialog with a landscape, print-only sheet containing exactly the shapes in the current Study filter. The page retains the active string-set, quality, and inversion context while excluding navigation, filters, and quiz content; the browser print dialog can print it or save it as a PDF.
 
 **Quiz** filters the same canonical collection, asks for the root, third, fifth, or a mixed target, and offers 5-, 10-, 20-question, or continuous sessions. It records score and missed categories, saves an in-progress session, and can open a focused study set for missed shapes.
 

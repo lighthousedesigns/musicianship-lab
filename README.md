@@ -7,8 +7,8 @@ Planned public site: <https://lighthousedesigns.github.io/musicianship-lab/>
 ## Current tools
 
 - **Chord Practice** — individual chord and progression practice with diagrams, MIDI grading, manual controls, exact custom sets, saved sets, statistics, and voice-leading options.
-- **Fretboard Voice Leading** — playable triad routes with automatic or exact starting shapes, Study and Recall views, and a shared Shape Library.
-- **Triad Shapes** — Study and Quiz modes for the 24 canonical movable major/minor triad shapes.
+- **Fretboard Voice Leading** — playable triad routes with automatic or exact starting shapes, Study and Recall views, a shared Shape Library, and print/PDF-ready route sheets.
+- **Triad Shapes** — Study and Quiz modes for the 24 canonical movable major/minor triad shapes, with print/PDF-ready filtered Study sheets.
 - **Chord Identifier** — identifies notes, intervals, chords, and collections from Web MIDI input.
 - **Favorite Chords** — saves identifier results locally and supports play-to-match recall.
 
