@@ -2723,7 +2723,7 @@
 
     @media print {
       @page {
-        size: landscape;
+        size: letter portrait;
         margin: 9mm;
       }
 
@@ -2811,11 +2811,6 @@
         justify-content: center;
       }
 
-      .fretboard-print-grid[data-columns="4"] {
-        grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 3mm;
-      }
-
       .fretboard-print-card {
         display: grid;
         break-inside: avoid;
@@ -2862,9 +2857,6 @@
         max-height: 46mm;
       }
 
-      .fretboard-print-grid[data-columns="4"] .fretboard-svg {
-        max-height: 42mm;
-      }
     }
   </style>
 </head>
@@ -7126,7 +7118,9 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         fretboardPrintGrid.replaceChildren();
         cards.forEach(card => fretboardPrintGrid.appendChild(card));
         const count = cards.length;
-        fretboardPrintGrid.dataset.columns = count <= 1 ? "1" : count <= 2 ? "2" : count <= 6 ? "3" : "4";
+        fretboardPrintGrid.dataset.columns = count === 1
+          ? "1"
+          : count === 2 || count === 4 ? "2" : "3";
         fretboardPrintTitle.textContent = title;
         fretboardPrintContext.textContent = context;
         fretboardPrintCount.textContent = `${count} ${count === 1 ? "shape" : "shapes"}`;

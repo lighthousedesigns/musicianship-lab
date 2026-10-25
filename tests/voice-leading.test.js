@@ -867,6 +867,7 @@ triadShapesStudyUi.dispatchWindowEvent("afterprint");
 assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintSheet.hidden, true, "the print-only sheet is cleared after printing");
 assert.strictEqual(triadShapesStudyUi.elements.fretboardPrintGrid.children.length, 0, "printed shape content does not remain in the application DOM after printing");
 assert(/@media print[\s\S]*?body\.fretboard-print-active main > :not\(#fretboardPrintSheet\)[\s\S]*?display: none !important;/.test(html), "print media hides application chrome and leaves only the prepared shape sheet");
+assert(/@page\s*\{[\s\S]*?size:\s*letter portrait;/.test(html), "fretboard print sheets request US Letter portrait pages");
 
 const quizDeck = api.buildTriadShapeQuizDeck({
   stringSet: "all",
@@ -4337,7 +4338,7 @@ assert.strictEqual(fretboardVoiceUi.getPrintCallCount(), 1, "Print Route opens t
 assert.strictEqual(fretboardVoiceUi.elements.fretboardPrintTitle.textContent, "Voice Leading Route", "the print sheet identifies the generated route");
 assert(fretboardVoiceUi.elements.fretboardPrintContext.textContent.includes("C major · GBE · Progression"), "the printed route keeps key, string-set, and progression context");
 assert.strictEqual(fretboardVoiceUi.elements.fretboardPrintGrid.children.length, stableGuitarRoute.route.length, "the print sheet contains exactly the visible generated route shapes");
-assert.strictEqual(fretboardVoiceUi.elements.fretboardPrintGrid.dataset.columns, stableGuitarRoute.route.length <= 6 ? "3" : "4", "the printed route chooses a compact grid for its shape count");
+assert.strictEqual(fretboardVoiceUi.elements.fretboardPrintGrid.dataset.columns, "3", "a seven-shape route uses a readable three-column portrait grid");
 assert(!studyDescendants(fretboardVoiceUi.elements.fretboardPrintGrid).some(element => element.tagName === "BUTTON"), "printed route cards contain diagrams without interactive controls");
 fretboardVoiceUi.dispatchWindowEvent("afterprint");
 fretboardVoiceUi.elements.fretboardVoiceScreenLibraryButton.dispatch("click");

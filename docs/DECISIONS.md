@@ -80,7 +80,7 @@ For the shipped product contract, see [`PRODUCT.md`](PRODUCT.md). For engineerin
 
 **Decision:** Voice Leading Route and Triad Shapes Study build a temporary print-only sheet from the same route or filtered shape data that is currently visible. The browser print dialog handles paper printing and PDF saving. Unrevealed Recall diagrams and Quiz questions are not printable.
 
-**Rationale:** A dedicated landscape sheet can fit compact diagrams cleanly without application chrome, while reusing the shared fretboard renderer prevents printed music data from diverging from the screen.
+**Rationale:** A dedicated portrait sheet with a maximum of three diagram columns fits standard PDF pages cleanly without application chrome, while reusing the shared fretboard renderer prevents printed music data from diverging from the screen.
 
 **Consequences:** Print output includes concise session context and only the current visible shapes. It does not persist separate print state, generate files on a server, or introduce another diagram implementation.
 
