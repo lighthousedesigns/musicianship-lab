@@ -563,6 +563,31 @@
       text-transform: none;
     }
 
+    .app-update {
+      position: fixed;
+      z-index: 100;
+      right: 16px;
+      bottom: 16px;
+      left: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      width: min(760px, calc(100% - 32px));
+      margin: 0 auto;
+      border: 2px solid var(--accent);
+      border-radius: 14px;
+      padding: 14px 18px;
+      background: var(--panel);
+      box-shadow: 0 4px 24px #17241f26;
+    }
+
+    .app-update[hidden] { display: none; }
+    .app-update p { margin: 0; color: var(--muted); font-size: 0.88rem; }
+    .app-update-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+    .app-update button { padding: 8px 12px; font-size: 0.9rem; }
+
     .intro {
       margin: 0 0 28px;
       color: var(--muted);
@@ -2741,6 +2766,7 @@
     }
 
     @media print {
+      .app-update { display: none !important; }
       @page {
         size: letter portrait;
         margin: 9mm;
@@ -2881,6 +2907,16 @@
 </head>
 <body>
   <main>
+    <aside id="appUpdateNotice" class="app-update" aria-label="Application update" hidden>
+      <div role="status" aria-live="polite">
+        <strong>New version available</strong>
+        <p>Reload when you're ready. Your saved progressions and settings stay in this browser.</p>
+      </div>
+      <div class="app-update-actions">
+        <button id="appUpdateReload" type="button" class="primary">Reload latest version</button>
+        <button id="appUpdateLater" type="button">Later</button>
+      </div>
+    </aside>
     <nav id="appNavigation" class="app-navigation" aria-label="Application navigation" hidden>
       <div class="breadcrumbs" aria-label="Breadcrumb">
         <button id="navHomeButton" class="breadcrumb-button" type="button">Home</button>
@@ -4408,6 +4444,8 @@
     (() => {
       "use strict";
 
+      const APP_RELEASE = Object.freeze({ id: "development", builtAt: 0, basePath: "/" });
+
       const STORAGE_KEY = "triad-trainer-c-major-items";
       const SAMPLE_TRIADS = `I — C Major — Root Position | C E G
 I — C Major — 1st Inversion | E G C
@@ -4696,6 +4734,9 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       );
 
       const appNavigation = document.getElementById("appNavigation");
+      const appUpdateNotice = document.getElementById("appUpdateNotice");
+      const appUpdateReload = document.getElementById("appUpdateReload");
+      const appUpdateLater = document.getElementById("appUpdateLater");
       const navHomeButton = document.getElementById("navHomeButton");
       const navAreaButton = document.getElementById("navAreaButton");
       const navToolSeparator = document.getElementById("navToolSeparator");
@@ -5327,6 +5368,10 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       let favoritePlayMatchId = "";
       let currentNavigationArea = "";
       let currentNavigationTool = "";
+      let pendingAppRelease = null;
+      let dismissedAppReleaseId = "";
+      let appUpdateRequest = null;
+      let appUpdateLastCheckedAt = -Infinity;
       let lastFretboardTool = "fretboard-voice";
       let lastSession = null;
       let midiAccess = null;
@@ -11216,6 +11261,73 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         });
       }
 
+      function checkForAppUpdate(force = false) {
+        if (APP_RELEASE.id === "development" || typeof window.fetch !== "function" ||
+            !["http:", "https:"].includes(window.location.protocol)) return Promise.resolve(false);
+        if (appUpdateRequest) return appUpdateRequest;
+        if (!force && Date.now() - appUpdateLastCheckedAt < 60000) return Promise.resolve(false);
+        appUpdateLastCheckedAt = Date.now();
+        appUpdateRequest = (async () => {
+          const controller = typeof window.AbortController === "function"
+            ? new window.AbortController() : null;
+          const timeout = controller ? window.setTimeout(() => controller.abort(), 8000) : null;
+          try {
+            const url = new URL(`${APP_RELEASE.basePath}version.json`, window.location.origin);
+            url.searchParams.set("check", String(Date.now()));
+            const response = await window.fetch(url.href, {
+              cache: "no-store", credentials: "same-origin", mode: "same-origin",
+              signal: controller?.signal
+            });
+            if (!response.ok) return false;
+            const release = await response.json();
+            if (!release || release.schemaVersion !== 1 || typeof release.id !== "string" ||
+                !/^[a-f0-9]{16}$/.test(release.id) ||
+                release.basePath !== APP_RELEASE.basePath ||
+                !Number.isFinite(release.builtAt) || release.builtAt <= APP_RELEASE.builtAt ||
+                release.id === APP_RELEASE.id) return false;
+            pendingAppRelease = release;
+            if (release.id !== dismissedAppReleaseId) appUpdateNotice.hidden = false;
+            return true;
+          } catch (_) {
+            // An offline or failed update check must never interrupt practice.
+            return false;
+          } finally {
+            if (timeout !== null) window.clearTimeout(timeout);
+          }
+        })().finally(() => { appUpdateRequest = null; });
+        return appUpdateRequest;
+      }
+
+      function reloadLatestAppVersion() {
+        if (!pendingAppRelease) return;
+        const url = new URL(APP_RELEASE.basePath, window.location.origin);
+        let exerciseId = NAVIGATION_TOOLS[currentNavigationTool]?.exerciseId;
+        if (currentNavigationTool === "triad-shapes") exerciseId = TRIAD_SHAPES_VIEW_IDS[triadShapesMode];
+        if (currentNavigationTool === "fretboard-voice") exerciseId = FRETBOARD_VOICE_VIEW_IDS[fretboardVoiceInternalView];
+        if (exerciseId) url.searchParams.set("exercise", exerciseId);
+        else if (currentNavigationArea) url.searchParams.set("area", currentNavigationArea);
+        url.searchParams.set("v", pendingAppRelease.id);
+        window.location.assign(url.href);
+      }
+
+      function startAppUpdateChecks() {
+        if (APP_RELEASE.id === "development") return;
+        appUpdateReload.addEventListener("click", reloadLatestAppVersion);
+        appUpdateLater.addEventListener("click", () => {
+          dismissedAppReleaseId = pendingAppRelease?.id || "";
+          appUpdateNotice.hidden = true;
+        });
+        window.addEventListener("focus", () => { checkForAppUpdate(); });
+        window.addEventListener("pageshow", () => { checkForAppUpdate(); });
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState !== "hidden") checkForAppUpdate();
+        });
+        window.setInterval(() => {
+          if (document.visibilityState !== "hidden") checkForAppUpdate();
+        }, 300000);
+        checkForAppUpdate();
+      }
+
       function updateApplicationNavigation(area = currentNavigationArea, tool = currentNavigationTool) {
         const areaDefinition = NAVIGATION_AREAS[area];
         const toolDefinition = NAVIGATION_TOOLS[tool];
@@ -15568,6 +15680,8 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       });
 
       window.__voiceLeadingTrainerTests = Object.freeze({
+        checkForAppUpdate,
+        appRelease: APP_RELEASE,
         musicianshipEngine: MUSICIANSHIP_ENGINE,
         key: MAJOR_KEYS["c-major"],
         keys: MAJOR_KEYS,
@@ -15839,6 +15953,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         enableMidiButton.disabled = true;
         updateMidiLiveDisplay();
       }
+      startAppUpdateChecks();
     })();
   </script>
 </body>

@@ -15,6 +15,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
   const documentListeners = {};
   const windowListeners = {};
   let printCallCount = 0;
+  const reloadTargets = [];
   const choices = {
     mode: "triad",
     timing: "10000",
@@ -30,7 +31,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
       this.tagName = tagName;
       this.value = "";
       this.textContent = "";
-      this.hidden = id === "appNavigation" || id === "areaLandingScreen" ||
+      this.hidden = id === "appUpdateNotice" || id === "appNavigation" || id === "areaLandingScreen" ||
         id === "setupScreen" || id === "practiceScreen" || id === "voiceScreen" || id === "playScreen" ||
         id === "fretboardScreen" || id === "keyStudyScreen" || id === "voiceSettings" ||
         id === "fretboardVoiceScreen" || id === "triadShapesScreen" || id === "playSettings" || id === "fretboardSettings" || id === "keyStudySettings" ||
@@ -98,6 +99,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
   }
 
   const ids = [
+    "appUpdateNotice", "appUpdateReload", "appUpdateLater",
     "appNavigation", "navHomeButton", "navAreaButton", "navToolSeparator", "navToolName",
     "fretboardAreaTabs", "navFretboardPractice", "navFretboardKeyStudy", "navFretboardVoiceLeading", "navFretboardTriadShapes",
     "homeScreen", "homeHeading", "homeKeyboardButton", "homeFretboardButton",
@@ -476,6 +478,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
   });
 
   const document = {
+    visibilityState: "visible",
     title: "Triad Trainer",
     activeElement: null,
     body: new FakeElement("body", "BODY"),
@@ -511,6 +514,9 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
 
   const window = {
     location: {
+      protocol: choices.protocol || "https:",
+      origin: "https://lighthousedesigns.github.io",
+      assign(url) { reloadTargets.push(url); },
       pathname: choices.pathname || "",
       search: choices.search || (choices.voiceDebug ? "?debugVoiceLeading=1" : ""),
       hash: choices.hash || ""
@@ -539,7 +545,9 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     },
     confirm() {
       return true;
-    }
+    },
+    fetch: choices.fetchUpdate,
+    AbortController
   };
   const localStorage = {
     getItem(key) {
@@ -562,11 +570,16 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     Date: FakeDate,
     Math,
     Number,
+    URL,
     navigator: midiNavigator,
     console
   };
   vm.createContext(context);
-  vm.runInContext(scriptMatch[1], context, { filename: "index.html" });
+  const applicationScript = choices.appRelease ? scriptMatch[1].replace(
+    'const APP_RELEASE = Object.freeze({ id: "development", builtAt: 0, basePath: "/" });',
+    `const APP_RELEASE = Object.freeze(${JSON.stringify(choices.appRelease)});`
+  ) : scriptMatch[1];
+  vm.runInContext(applicationScript, context, { filename: "index.html" });
 
   return {
     api: window.__voiceLeadingTrainerTests,
@@ -575,6 +588,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     modeInputs,
     playDifficultyInputs,
     storage,
+    reloadTargets,
     getPrintCallCount() {
       return printCallCount;
     },
@@ -5152,7 +5166,87 @@ async function runMidiAccessTests() {
   assert.strictEqual(unsupportedHarness.elements.midiSetupStatus.textContent, "MIDI is not supported in this browser.", "unsupported browsers are handled gracefully");
 }
 
+async function runAppUpdateTests() {
+  const release = { id: "1111111111111111", builtAt: 1000, basePath: "/musicianship-lab/" };
+  let latest = { schemaVersion: 1, ...release };
+  const requests = [];
+  const storage = new Map([["chord-practice-saved-progressions", JSON.stringify([savedNamedRoute])]]);
+  const updates = createHarness({
+    appRelease: release,
+    search: "?exercise=keyboard.chord_practice&v=old",
+    fetchUpdate: async (url, options) => {
+      requests.push({ url, options });
+      return { ok: true, json: async () => latest };
+    }
+  }, storage);
+  await updates.api.checkForAppUpdate(true);
+  assert.strictEqual(requests.length, 1, "startup update checks share one in-flight request");
+  assert.strictEqual(updates.elements.appUpdateNotice.hidden, true, "the current release shows no update banner");
+  assert.strictEqual(new URL(requests[0].url).pathname, "/musicianship-lab/version.json", "update checks honor the Pages subdirectory even from a direct route");
+  assert(new URL(requests[0].url).searchParams.has("check"), "each update request bypasses the browser's cached URL");
+  assert.strictEqual(requests[0].options.cache, "no-store", "the version manifest is requested without browser caching");
+  latest = { ...latest, id: "2222222222222222", builtAt: 2000 };
+  await updates.api.checkForAppUpdate(true);
+  assert.strictEqual(updates.elements.appUpdateNotice.hidden, false, "a newer deployed build offers an update");
+  assert.strictEqual(updates.reloadTargets.length, 0, "the app never reloads automatically during practice");
+  await updates.api.checkForAppUpdate();
+  assert.strictEqual(requests.length, 2, "frequent focus events do not repeatedly fetch the manifest");
+  updates.elements.appUpdateLater.dispatch("click");
+  assert.strictEqual(updates.elements.appUpdateNotice.hidden, true, "Later dismisses the update notice");
+  await updates.api.checkForAppUpdate(true);
+  assert.strictEqual(updates.elements.appUpdateNotice.hidden, true, "a dismissed build does not nag on the next check");
+  latest = { ...latest, id: "3333333333333333", builtAt: 3000 };
+  await updates.api.checkForAppUpdate(true);
+  assert.strictEqual(updates.elements.appUpdateNotice.hidden, false, "a later distinct release can offer an update again");
+  updates.api.loadProgression(savedNamedRoute.id);
+  const storageBeforeReload = JSON.stringify([...storage]);
+  updates.elements.appUpdateReload.dispatch("click");
+  const reload = new URL(updates.reloadTargets[0]);
+  assert.strictEqual(reload.origin, "https://lighthousedesigns.github.io", "update reloads remain on the same storage origin");
+  assert.strictEqual(reload.pathname, "/musicianship-lab/", "reload uses the permanent project entry point");
+  assert.strictEqual(reload.searchParams.get("exercise"), "keyboard.chord_practice", "update reload returns to the current tool");
+  assert.strictEqual(reload.searchParams.get("v"), latest.id, "reload replaces the old cache key with the new build ID automatically");
+  assert.strictEqual(JSON.stringify([...storage]), storageBeforeReload, "updating never clears or rewrites saved progressions, favorites, or settings");
+  assert.strictEqual(updates.api.loadProgression(savedNamedRoute.id), true, "saved progressions remain loadable after an update is requested");
+
+  for (const invalid of [
+    { ...latest, builtAt: 500 },
+    { ...latest, id: release.id },
+    { ...latest, schemaVersion: 9 },
+    { ...latest, basePath: "/wrong/" },
+    { ...latest, id: "https://other.example/" },
+    null
+  ]) {
+    const invalidUpdate = createHarness({
+      appRelease: release,
+      fetchUpdate: async () => ({ ok: true, json: async () => invalid })
+    });
+    await invalidUpdate.api.checkForAppUpdate(true);
+    assert.strictEqual(invalidUpdate.elements.appUpdateNotice.hidden, true, "stale or malformed manifests do not offer an update");
+  }
+  let offline = true;
+  const offlineUpdates = createHarness({
+    appRelease: release,
+    fetchUpdate: () => {
+      if (offline) throw new Error("Offline");
+      return Promise.resolve({ ok: true, json: async () => latest });
+    }
+  });
+  assert.strictEqual(await offlineUpdates.api.checkForAppUpdate(true), false, "offline update failures are silent");
+  offline = false;
+  await offlineUpdates.api.checkForAppUpdate(true);
+  assert.strictEqual(offlineUpdates.elements.appUpdateNotice.hidden, false, "update checks recover when the network returns");
+  let developmentRequests = 0;
+  const development = createHarness({ fetchUpdate: async () => { developmentRequests += 1; } });
+  await development.api.checkForAppUpdate(true);
+  assert.strictEqual(developmentRequests, 0, "standalone development files do not request a production manifest");
+  const fileUpdates = createHarness({ appRelease: release, protocol: "file:", fetchUpdate: async () => { developmentRequests += 1; } });
+  await fileUpdates.api.checkForAppUpdate(true);
+  assert.strictEqual(developmentRequests, 0, "file URLs remain usable without update network checks");
+}
+
 runMidiAccessTests()
+  .then(runAppUpdateTests)
   .then(() => {
     console.log("PASS: Chord Practice individual/progression modes, expanded chords, nearest voicings, MIDI, migrations, Fretboard Voice Leading, persistence, Favorites, shortcuts, and devices verified");
   })

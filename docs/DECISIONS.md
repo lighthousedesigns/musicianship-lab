@@ -124,6 +124,14 @@ For the shipped product contract, see [`PRODUCT.md`](PRODUCT.md). For engineerin
 
 **Consequences:** `outputs/index.html` is source; `dist/` is generated. GitHub Pages uses the configured project subpath. New assets must respect that base path. Broad refactors carry unusual risk because UI and engines share one file and mutable state.
 
+## Explicit updates on one permanent public URL
+
+**Decision:** Published builds compare their embedded release identity with a same-origin version manifest fetched without browser caching. A newer build offers an explicit reload; it never forces navigation during practice. Source/file builds do not check for updates.
+
+**Rationale:** GitHub Pages HTML caching and long-lived tabs made new features difficult to find. A small build manifest and automatic fresh-URL generation avoid changing bookmarks or clearing saved practice data, with no backend or third-party service.
+
+**Consequences:** The build stamps matching release metadata into every physical entry point and `version.json`; artifact checks validate their agreement. Update navigation keeps the storage origin and current tool, and offline errors leave practice available. The feature itself needs one initial fresh load, and CDN propagation remains an external constraint.
+
 ## Stable routes and explicit public entry points
 
 **Decision:** Preserve stable exercise IDs and support query/hash startup routing, while generating physical Pages files only for deliberately supported public paths.

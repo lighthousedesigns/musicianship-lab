@@ -6,6 +6,15 @@ const config = await readDeploymentConfig();
 const distDirectory = path.join(projectRoot, "dist");
 const builtIndex = await readFile(path.join(distDirectory, "index.html"), "utf8");
 await stat(path.join(distDirectory, ".nojekyll"));
+const version = JSON.parse(await readFile(path.join(distDirectory, "version.json"), "utf8"));
+const embeddedRelease = builtIndex.match(/const APP_RELEASE = Object\.freeze\((\{[^\n]+\})\);/);
+const release = embeddedRelease ? JSON.parse(embeddedRelease[1]) : null;
+if (!release || version.schemaVersion !== 1 || !/^[a-f0-9]{16}$/.test(version.id) ||
+    version.id !== release.id || version.builtAt !== release.builtAt ||
+    !Number.isFinite(version.builtAt) || version.builtAt <= 0 ||
+    version.basePath !== config.basePath || release.basePath !== config.basePath) {
+  throw new Error("The update manifest does not match the published application release.");
+}
 
 if (!builtIndex.includes("<title>Musicianship Lab</title>") || !builtIndex.includes("window.__voiceLeadingTrainerTests")) {
   throw new Error("The production artifact is missing the application test interface.");

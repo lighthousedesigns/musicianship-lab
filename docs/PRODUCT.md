@@ -219,9 +219,17 @@ MIDI is not required for Chord Practice naming prompts, answer reveal, keyboard/
 
 ## Persistence
 
+### Published app updates
+
+The permanent public bookmark is `https://lighthousedesigns.github.io/musicianship-lab/`. Published builds check for newer releases on startup, returning to the tab (throttled to once a minute), and every five minutes while the tab is visible. A newer release displays **New version available**, **Reload latest version**, and **Later**. Reload uses a fresh build-specific URL automatically and retains the current tool's destination and storage origin. It never reloads during practice without an explicit click. Update failures and offline use do not block the tools. Source-file use has no update checks. A pre-existing cached build without this mechanism needs one initial fresh load after its first deployment.
+
+### Browser-local data
+
 Settings, last-session context, saved practice sets, quiz progress, and favorites use `localStorage`. There is no account, cloud sync, server database, import/export, or recovery service.
 
 Data belongs to one browser origin. Direct file use, localhost, preview under `/musicianship-lab/`, and the GitHub Pages site have different storage namespaces. Saved data does not automatically move between them.
+
+Chrome, Safari, Codex's browser, separate browser profiles, and private windows also have separate storage contexts. Updating the public app or changing its `?v=` query does not erase saved data or change its origin. Clearing site data does erase local saves and is not an update procedure.
 
 Loaders are deliberately tolerant. They migrate old route/mode names, legacy Keyboard Voice Leading into Chord Practice Progression, standalone Fretboard modes into Voice Leading/Shape Library, old Fretboard Cycle state into Study, incompatible exact-start data into Auto, and older Chord Practice, Triad Shapes, and favorite schemas. Storage failures should leave the current visit usable.
 
