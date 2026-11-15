@@ -156,6 +156,9 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     "playRevealIncorrect", "playShowRoman", "playResponseTimer", "playExactRegister",
     "playKeyboardDiagramLabels",
     "playPracticeType", "playIndividualSettings", "playProgressionSettings",
+    "playProgressionName", "playSavedProgressionSelect", "playSaveProgressionButton",
+    "playLoadProgressionButton", "playRenameProgressionButton", "playDeleteProgressionButton",
+    "playSavedProgressionMessage",
     "playProgressionKeySelect", "playProgressionSource", "playProgressionVoicingMethod",
     "playCommonProgressionControls", "playCommonProgressionSelect", "playCommonStartingInversion",
     "playProgressionEditor", "playCustomProgressionBuilder", "playProgressionAddHeading",
@@ -3204,6 +3207,99 @@ assert.strictEqual(
 restoredProgression.elements.homeKeyboardButton.dispatch("click");
 assert.strictEqual(restoredProgression.elements.setupScreen.hidden, false, "Keyboard opens the restored Chord Practice setup directly");
 assert.strictEqual(restoredProgression.elements.playPracticeType.value, "progression", "direct Keyboard navigation preserves the last-used Chord Practice mode");
+
+const namedProgressionStorage = new Map();
+const namedProgressions = createHarness({ mode: "play" }, namedProgressionStorage);
+namedProgressions.elements.playPracticeType.value = "progression";
+namedProgressions.elements.playPracticeType.dispatch("change");
+namedProgressions.elements.playProgressionKeySelect.value = "f-sharp-major";
+namedProgressions.elements.playProgressionKeySelect.dispatch("change");
+namedProgressions.elements.playProgressionVoicingMethod.value = "nearest";
+namedProgressions.elements.playProgressionVoicingMethod.dispatch("change");
+namedProgressions.elements.playCommonStartingInversion.value = "2";
+namedProgressions.elements.playCommonStartingInversion.dispatch("change");
+namedProgressions.elements.playProgressionRepeat.checked = false;
+namedProgressions.elements.playProgressionShowHints.checked = false;
+namedProgressions.elements.playProgressionName.value = "Sharp-key route";
+namedProgressions.elements.playSaveProgressionButton.dispatch("click");
+const savedNamedRoute = JSON.parse(namedProgressionStorage.get("chord-practice-saved-progressions"))[0];
+const namedMidi = JSON.stringify(namedProgressions.api.getChordPracticeProgressionRoute().map(item => item.voicing.midi));
+assert.strictEqual(savedNamedRoute.keyId, "f-sharp-major", "named progressions retain the key");
+assert.strictEqual(savedNamedRoute.source, "common", "common progression configuration is preserved");
+assert.strictEqual(savedNamedRoute.commonStartingInversion, 2, "common starting inversion is saved");
+assert.strictEqual(savedNamedRoute.voicingMethod, "nearest", "voicing method is saved");
+assert.strictEqual(savedNamedRoute.repeat, false, "repeat preference is saved");
+assert.strictEqual(savedNamedRoute.showHints, false, "movement hint preference is saved");
+assert.strictEqual(namedProgressions.elements.playLoadProgressionButton.disabled, false, "saved progression is selected and ready to load");
+namedProgressions.elements.playProgressionSource.value = "custom";
+namedProgressions.elements.playProgressionSource.dispatch("change");
+namedProgressions.api.clearChordPracticeProgression();
+nearestProgressionItems.forEach(item => namedProgressions.api.addChordPracticeProgressionItem(item));
+namedProgressions.elements.playProgressionName.value = "Custom route";
+namedProgressions.elements.playSaveProgressionButton.dispatch("click");
+const customNamedRoute = JSON.parse(namedProgressionStorage.get("chord-practice-saved-progressions"))[1];
+assert.strictEqual(customNamedRoute.source, "custom", "a second named entry stores the custom builder");
+assert.strictEqual(namedProgressions.api.loadProgression(savedNamedRoute.id), true, "named common progression loads after changing the builder");
+assert.strictEqual(JSON.stringify(namedProgressions.api.getChordPracticeProgressionRoute().map(item => item.voicing.midi)), namedMidi, "loading restores the exact generated MIDI route");
+assert.strictEqual(namedProgressions.elements.playProgressionRepeat.checked, false, "loading restores Repeat off");
+assert.strictEqual(namedProgressions.elements.playCommonStartingInversion.value, "2", "loading restores the starting inversion");
+assert.strictEqual(namedProgressions.elements.playProgressionVoicingMethod.value, "nearest", "loading restores nearest voicings");
+assert(namedProgressions.api.getChordPracticeProgressionRoute().some(item => item.chord.noteNames.includes("E#")), "saved sharp-key progressions preserve theoretical E-sharp spelling");
+namedProgressions.elements.playSaveProgressionButton.dispatch("click");
+assert.strictEqual(JSON.parse(namedProgressionStorage.get("chord-practice-saved-progressions")).length, 2, "saving the selected name updates its entry without duplicating it");
+namedProgressions.api.loadProgression(customNamedRoute.id);
+namedProgressions.api.clearChordPracticeProgression();
+assert.strictEqual(namedProgressions.api.loadProgression(customNamedRoute.id), true, "editing a loaded progression does not mutate the saved library");
+assert.strictEqual(namedProgressions.api.getChordPracticeProgressionItems().length, customNamedRoute.items.length, "all custom chords restore in order");
+namedProgressions.elements.playSavedProgressionSelect.value = savedNamedRoute.id;
+namedProgressions.elements.playSavedProgressionSelect.dispatch("change");
+assert.strictEqual(namedProgressions.elements.playProgressionName.value, savedNamedRoute.name, "choosing the dropdown fills the name field");
+assert.strictEqual(namedProgressions.elements.playProgressionSource.value, "custom", "choosing a dropdown entry does not replace the builder until Load");
+namedProgressions.elements.playLoadProgressionButton.dispatch("click");
+namedProgressions.elements.playProgressionName.value = "Weekly practice";
+namedProgressions.elements.playRenameProgressionButton.dispatch("click");
+const reopenedNamed = createHarness({ mode: "play" }, namedProgressionStorage);
+reopenedNamed.elements.playSavedProgressionSelect.value = savedNamedRoute.id;
+reopenedNamed.elements.playSavedProgressionSelect.dispatch("change");
+assert.strictEqual(reopenedNamed.elements.playProgressionName.value, "Weekly practice", "renaming survives a new application session");
+reopenedNamed.elements.playLoadProgressionButton.dispatch("click");
+assert.strictEqual(JSON.stringify(reopenedNamed.api.getChordPracticeProgressionRoute().map(item => item.voicing.midi)), namedMidi, "the saved exact voicings survive a full reload");
+reopenedNamed.elements.playProgressionStartButton.dispatch("click");
+assert.strictEqual(reopenedNamed.api.getCurrentPlayExercise().promptDirection, "chord-to-play", "a loaded progression remains performance practice");
+assert.strictEqual(JSON.stringify(reopenedNamed.api.getCurrentPlayExercise().voicing.midi), JSON.stringify(savedNamedRoute.voicings[0].midi), "practice uses the saved first voicing");
+playMidiChord(reopenedNamed, reopenedNamed.api.getCurrentPlayExercise().voicing.midi);
+assert.strictEqual(reopenedNamed.elements.playMidiFeedback.textContent, "✓ Correct", "MIDI grading accepts the loaded progression's exact displayed voicing");
+assert.strictEqual(namedProgressions.api.renameProgression(savedNamedRoute.id, "Custom route"), false, "rename cannot replace a different saved progression's name");
+namedProgressions.elements.playDeleteProgressionButton.dispatch("click");
+assert.strictEqual(JSON.parse(namedProgressionStorage.get("chord-practice-saved-progressions")).length, 1, "Delete removes only the selected saved progression");
+assert.strictEqual(namedProgressions.api.getChordPracticeProgressionItems().length, savedNamedRoute.items.length, "deleting a library entry preserves the current builder");
+assert.strictEqual(namedProgressions.elements.playLoadProgressionButton.disabled, true, "Load is disabled without a selected saved progression");
+namedProgressions.elements.playProgressionName.value = "";
+assert.strictEqual(namedProgressions.api.saveCurrentProgression(), null, "saving requires a name");
+namedProgressions.elements.playProgressionName.value = "Empty";
+namedProgressions.api.clearChordPracticeProgression();
+assert.strictEqual(namedProgressions.api.saveCurrentProgression(), null, "empty progressions cannot be saved");
+const damagedProgressionStorage = new Map([["chord-practice-saved-progressions", JSON.stringify([
+  customNamedRoute, { ...customNamedRoute, id: "bad", voicings: [{ midi: [0] }] }, null
+])]]);
+const tolerantProgressions = createHarness({ mode: "play" }, damagedProgressionStorage);
+assert.strictEqual(tolerantProgressions.elements.playSavedProgressionSelect.children.length, 2, "invalid saved entries are skipped while valid progressions remain available");
+const brokenProgressions = createHarness({ mode: "play" }, new Map([["chord-practice-saved-progressions", "invalid JSON"]]));
+assert.strictEqual(brokenProgressions.elements.playSavedProgressionSelect.children.length, 1, "malformed library storage does not prevent startup");
+class UnavailableProgressionStorage extends Map {
+  set(key, value) {
+    if (key === "chord-practice-saved-progressions") throw new Error("Storage unavailable");
+    return super.set(key, value);
+  }
+}
+const transientProgression = createHarness({ mode: "play" }, new UnavailableProgressionStorage());
+transientProgression.elements.playPracticeType.value = "progression";
+transientProgression.elements.playPracticeType.dispatch("change");
+transientProgression.elements.playProgressionName.value = "Current visit";
+const transientSaved = transientProgression.api.saveCurrentProgression();
+assert(transientSaved, "a saved progression remains usable in memory when storage fails");
+assert(transientProgression.elements.playSavedProgressionMessage.textContent.includes("only until you close or reload"), "storage failure clearly reports that the save is temporary");
+assert.strictEqual(transientProgression.api.loadProgression(transientSaved.id), true, "temporary saved progressions can be loaded without browser storage");
 
 if (process.env.MUSICIANSHIP_TEST_SCOPE === "progression-builder") {
   console.log("PASS: Chord Practice preset/custom separation, compact editing, live preview, one-step Start, and persistence verified");

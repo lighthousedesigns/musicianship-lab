@@ -93,6 +93,7 @@ When adding a public direct route, update the route parser, `deployment.config.j
 - Keep current navigation intentional: Keyboard opens directly into Chord Practice; Fretboard exposes Voice Leading then Triad Shapes; Explore exposes Chord Identifier and Favorite Chords.
 - Do not restore retired Recognize Triads, Play the Chord, Keyboard Voice Leading, Fretboard Practice, standalone Key Study, or Fretboard Cycle navigation without an explicit product decision.
 - Preserve stable exercise IDs, aliases, saved-state schemas, tolerant loading, and migrations. Browser storage failures must not make the current visit unusable.
+- Chord Practice's named progression library (`chord-practice-saved-progressions`, schema version 1) is separate from Individual Chords saved sets. Restore its exact generated voicings through the shared progression engine; edits affect the builder until the user explicitly saves the selected name again. Deleting a library entry must retain the current builder.
 - Keep MIDI optional wherever manual naming, reveal, study, or navigation already works. Request MIDI permission only after an explicit user action.
 - Preserve theoretical spelling supplied by the active key. Do not replace E-sharp, G-flat, or other correct spellings with convenient enharmonic shortcuts.
 - Reuse shared theory, voicing, grading, diagram, TAB, navigation, MIDI, and persistence implementations. Do not create parallel versions of the same musical rule.

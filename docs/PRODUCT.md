@@ -72,6 +72,10 @@ Difficulty is Guided, Standard, or Challenge. Options include reveal after an in
 
 Progression mode supports common diatonic progressions and a custom ordered builder. The user can select each inversion manually or ask for nearest voicings. The preview, practice target, piano diagram, and MIDI grading share the same generated voicing. Optional movement hints show how the current voicing relates to the previous one, and the progression may repeat.
 
+**Saved Progressions** sits above the builder's chord list. Enter a name and select **Save Progression** to store the current common or custom progression. Choose a saved entry from the dropdown and select **Load** to restore its key, ordered chords, inversions, exact generated voicings, voicing method, repeat setting, and movement-hint preference. Loading does not start the session; **Start Progression** begins performance practice from the restored preview. Editing the builder does not change the saved entry until it is saved again under the same selected name. A new name creates a separate copy. **Rename** changes only the saved entry's name, and **Delete** removes the saved entry after confirmation while retaining the current builder.
+
+Saved progressions use the separate versioned `chord-practice-saved-progressions` localStorage library. They remain in the current browser and device, separate from saved Individual Chords practice sets; there is no cloud synchronization. Invalid library entries are skipped, and storage failures leave the progression usable for the current visit with a message explaining that the save is temporary.
+
 Non-performance prompts are answered with on-screen root, chord-type, and inversion controls. Performance prompts can always be revealed and advanced manually for study, but automatic performance grading requires MIDI.
 
 ## Guitar and fretboard tools

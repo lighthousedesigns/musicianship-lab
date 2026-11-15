@@ -279,6 +279,25 @@
 
     .progression-common-settings .midi-control { min-width: 0; }
 
+    .progression-saved .midi-controls-grid { margin-top: 0; }
+    .progression-saved .midi-control { min-width: 0; }
+
+    .progression-saved input[type="text"] {
+      width: 100%;
+      min-width: 0;
+      border: 2px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 12px;
+      background: var(--panel);
+      color: var(--ink);
+      font-weight: 750;
+    }
+
+    .progression-saved input:focus-visible {
+      outline: 4px solid var(--focus);
+      outline-offset: 3px;
+    }
+
     .progression-settings-grid select,
     .progression-step-editor select,
     .progression-step-editor button,
@@ -3337,6 +3356,22 @@
               </div>
             </section>
 
+            <section class="progression-builder-section progression-saved" aria-labelledby="playSavedProgressionsHeading">
+              <h3 id="playSavedProgressionsHeading">Saved Progressions</h3>
+              <div class="midi-controls-grid">
+                <label class="midi-control" for="playProgressionName">Progression Name<input id="playProgressionName" type="text" maxlength="100" placeholder="My ii–V–I practice"></label>
+                <label class="midi-control" for="playSavedProgressionSelect">Saved Progressions<select id="playSavedProgressionSelect"></select></label>
+              </div>
+              <div class="preset-row">
+                <button id="playSaveProgressionButton" type="button">Save Progression</button>
+                <button id="playLoadProgressionButton" type="button" disabled>Load</button>
+                <button id="playRenameProgressionButton" type="button" disabled>Rename</button>
+                <button id="playDeleteProgressionButton" type="button" disabled>Delete</button>
+              </div>
+              <p class="settings-note">Saved in this browser on this device. Use a new name to save a separate copy.</p>
+              <p id="playSavedProgressionMessage" class="hint" aria-live="polite"></p>
+            </section>
+
             <div id="playProgressionEditor" class="progression-editor">
               <section id="playCustomProgressionBuilder" class="progression-builder progression-builder-section" aria-labelledby="playProgressionAddHeading" hidden>
                 <div class="progression-section-header">
@@ -4408,6 +4443,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       const TRAINER_MODE_STORAGE_KEY = "music-trainer-selected-mode";
       const PLAY_SETTINGS_STORAGE_KEY = "play-the-chord-settings";
       const PLAY_PRACTICE_SETS_STORAGE_KEY = "chord-practice-saved-sets";
+      const PLAY_PROGRESSIONS_STORAGE_KEY = "chord-practice-saved-progressions";
       const FRETBOARD_SETTINGS_STORAGE_KEY = "fretboard-trainer-settings";
       const KEY_STUDY_STORAGE_KEY = "fretboard-key-study-settings";
       const FRETBOARD_VOICE_STORAGE_KEY = "fretboard-voice-leading-settings";
@@ -4743,6 +4779,13 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       const playPracticeType = document.getElementById("playPracticeType");
       const playIndividualSettings = document.getElementById("playIndividualSettings");
       const playProgressionSettings = document.getElementById("playProgressionSettings");
+      const playProgressionName = document.getElementById("playProgressionName");
+      const playSavedProgressionSelect = document.getElementById("playSavedProgressionSelect");
+      const playSaveProgressionButton = document.getElementById("playSaveProgressionButton");
+      const playLoadProgressionButton = document.getElementById("playLoadProgressionButton");
+      const playRenameProgressionButton = document.getElementById("playRenameProgressionButton");
+      const playDeleteProgressionButton = document.getElementById("playDeleteProgressionButton");
+      const playSavedProgressionMessage = document.getElementById("playSavedProgressionMessage");
       const playProgressionKeySelect = document.getElementById("playProgressionKeySelect");
       const playProgressionSource = document.getElementById("playProgressionSource");
       const playProgressionVoicingMethod = document.getElementById("playProgressionVoicingMethod");
@@ -5242,6 +5285,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       let playCurrentSettings = null;
       let playCustomSetItems = [];
       let playSavedPracticeSets = [];
+      let playSavedProgressions = [];
       let playCustomSequenceIndex = 0;
       let playCustomItemSequence = 0;
       let playProgressionItems = [];
@@ -9648,6 +9692,192 @@ vii° — B Diminished — 2nd Inversion | F B D`;
           voicingMethod: "manual"
         }, key);
         return route.length === exactItems.length ? route : [];
+      }
+
+      function normalizeSavedProgression(saved) {
+        if (!saved || saved.schemaVersion !== 1 || typeof saved.name !== "string" ||
+            !saved.name.trim() || !MAJOR_KEYS[saved.keyId] ||
+            !Array.isArray(saved.items) || saved.items.length < 2 ||
+            !Array.isArray(saved.voicings) || saved.voicings.length !== saved.items.length) return null;
+        const items = saved.items.map(item => normalizeChordPracticeItem(item));
+        if (items.some(item => !item)) return null;
+        const voicings = saved.voicings.map((voicing, index) => {
+          const chord = chordPracticeProgressionChord(items[index]);
+          const inversion = voicing?.inversion;
+          const midi = voicing?.midi;
+          if (!Number.isInteger(inversion) || inversion < 0 || inversion >= chord.pitchClasses.length ||
+              !Array.isArray(midi) ||
+              !midi.every((note, noteIndex) => Number.isInteger(note) && note >= 0 && note <= 127 &&
+                (noteIndex === 0 || note > midi[noteIndex - 1])) ||
+              !voicingMatchesChord({ midi }, chord) ||
+              !midi.every((note, noteIndex) =>
+                midiPitchClass(note) === chord.pitchClasses[(inversion + noteIndex) % chord.pitchClasses.length])) return null;
+          return { itemId: items[index].id, inversion, midi: [...midi] };
+        });
+        if (voicings.some(voicing => !voicing)) return null;
+        return {
+          schemaVersion: 1,
+          id: typeof saved.id === "string" && saved.id ? saved.id : nextChordPracticeItemId("progression"),
+          name: saved.name.trim().slice(0, 100),
+          keyId: saved.keyId,
+          source: saved.source === "common" ? "common" : "custom",
+          commonProgression: CHORD_PRACTICE_COMMON_PROGRESSIONS[saved.commonProgression]
+            ? saved.commonProgression : "I-IV-V-I",
+          commonStartingInversion: [0, 1, 2].includes(saved.commonStartingInversion)
+            ? saved.commonStartingInversion : 0,
+          voicingMethod: saved.voicingMethod === "nearest" ? "nearest" : "manual",
+          repeat: saved.repeat !== false,
+          showHints: saved.showHints !== false,
+          items,
+          voicings
+        };
+      }
+
+      function renderSavedProgressions(selectedId = playSavedProgressionSelect.value) {
+        playSavedProgressionSelect.replaceChildren();
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = playSavedProgressions.length
+          ? "Choose a saved progression" : "No saved progressions yet";
+        playSavedProgressionSelect.appendChild(placeholder);
+        playSavedProgressions.forEach(progression => {
+          const option = document.createElement("option");
+          option.value = progression.id;
+          option.textContent = progression.name;
+          playSavedProgressionSelect.appendChild(option);
+        });
+        playSavedProgressionSelect.value = playSavedProgressions.some(item => item.id === selectedId)
+          ? selectedId : "";
+        updateSavedProgressionControls();
+      }
+
+      function updateSavedProgressionControls() {
+        const selected = playSavedProgressions.find(item => item.id === playSavedProgressionSelect.value);
+        [playLoadProgressionButton, playRenameProgressionButton, playDeleteProgressionButton]
+          .forEach(button => { button.disabled = !selected; });
+      }
+
+      function loadSavedProgressions() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(PLAY_PROGRESSIONS_STORAGE_KEY) || "[]");
+          const seen = new Set();
+          playSavedProgressions = (Array.isArray(saved) ? saved : [])
+            .map(normalizeSavedProgression)
+            .filter(item => {
+              if (!item || seen.has(item.id)) return false;
+              seen.add(item.id);
+              return true;
+            });
+        } catch (_) {
+          playSavedProgressions = [];
+        }
+        renderSavedProgressions();
+      }
+
+      function persistSavedProgressions(message) {
+        try {
+          localStorage.setItem(PLAY_PROGRESSIONS_STORAGE_KEY, JSON.stringify(playSavedProgressions));
+          playSavedProgressionMessage.textContent = message;
+        } catch (_) {
+          playSavedProgressionMessage.textContent =
+            "Browser storage is unavailable. This change is available only until you close or reload this page.";
+        }
+      }
+
+      function saveCurrentProgression() {
+        const name = playProgressionName.value.trim().slice(0, 100);
+        if (!name || !progressionPreviewIsCurrent()) {
+          playSavedProgressionMessage.textContent = !name
+            ? "Enter a name for this progression."
+            : "Build a playable progression with at least two chords before saving.";
+          return null;
+        }
+        const selected = playSavedProgressions.find(item => item.id === playSavedProgressionSelect.value);
+        const updating = selected?.name === name;
+        if (playSavedProgressions.some(item => item.name.toLowerCase() === name.toLowerCase() &&
+            (!updating || item.id !== selected.id))) {
+          playSavedProgressionMessage.textContent = "That name is already saved. Load it to update it, or choose a new name.";
+          return null;
+        }
+        const settings = currentChordPracticeSettings();
+        const saved = normalizeSavedProgression({
+          schemaVersion: 1,
+          id: updating ? selected.id : nextChordPracticeItemId("progression"),
+          name,
+          keyId: progressionKey().id,
+          source: settings.progressionSource,
+          commonProgression: settings.commonProgression,
+          commonStartingInversion: settings.commonStartingInversion,
+          voicingMethod: settings.voicingMethod,
+          repeat: settings.repeatProgression,
+          showHints: settings.showMovementHints,
+          items: settings.progressionItems,
+          voicings: settings.generatedProgressionVoicings
+        });
+        if (!saved) {
+          playSavedProgressionMessage.textContent = "This progression could not be saved. Check its chords and voicings.";
+          return null;
+        }
+        if (updating) playSavedProgressions = playSavedProgressions.map(item => item.id === saved.id ? saved : item);
+        else playSavedProgressions.push(saved);
+        renderSavedProgressions(saved.id);
+        persistSavedProgressions(`${updating ? "Updated" : "Saved"} “${name}”.`);
+        return saved;
+      }
+
+      function loadProgression(id = playSavedProgressionSelect.value) {
+        const saved = playSavedProgressions.find(item => item.id === id);
+        if (!saved) return false;
+        changeVoiceKey(saved.keyId);
+        playPracticeType.value = "progression";
+        playProgressionSource.value = saved.source;
+        playCommonProgressionSelect.value = saved.commonProgression;
+        playCommonStartingInversion.value = String(saved.commonStartingInversion);
+        playProgressionKeySelect.value = saved.keyId;
+        playProgressionVoicingMethod.value = saved.voicingMethod;
+        playProgressionRepeat.checked = saved.repeat;
+        playProgressionShowHints.checked = saved.showHints;
+        playProgressionItems = saved.items.map(item => normalizeChordPracticeItem(item));
+        updateChordPracticeModeVisibility();
+        playProgressionRoute = restoreChordPracticeProgressionRoute(saved.voicings, progressionKey());
+        renderChordPracticeProgressionSequence();
+        renderChordPracticeProgressionPreview(playProgressionRoute);
+        updateChordPracticeProgressionDisclosure();
+        playProgressionName.value = saved.name;
+        renderSavedProgressions(saved.id);
+        savePlaySettings();
+        playSavedProgressionMessage.textContent = `Loaded “${saved.name}”. Ready to practice.`;
+        return true;
+      }
+
+      function renameProgression(id = playSavedProgressionSelect.value, name = playProgressionName.value.trim()) {
+        const saved = playSavedProgressions.find(item => item.id === id);
+        name = name.trim().slice(0, 100);
+        if (!saved || !name) {
+          playSavedProgressionMessage.textContent = "Choose a saved progression and enter its new name.";
+          return false;
+        }
+        if (playSavedProgressions.some(item => item.id !== id && item.name.toLowerCase() === name.toLowerCase())) {
+          playSavedProgressionMessage.textContent = "That name is already saved. Choose a different name.";
+          return false;
+        }
+        saved.name = name;
+        playProgressionName.value = name;
+        renderSavedProgressions(id);
+        persistSavedProgressions(`Renamed to “${name}”.`);
+        return true;
+      }
+
+      function deleteProgression(id = playSavedProgressionSelect.value, requireConfirmation = true) {
+        const saved = playSavedProgressions.find(item => item.id === id);
+        if (!saved) return false;
+        if (requireConfirmation && typeof window.confirm === "function" &&
+            !window.confirm(`Delete saved progression “${saved.name}”? Your current builder will remain available.`)) return false;
+        playSavedProgressions = playSavedProgressions.filter(item => item.id !== id);
+        renderSavedProgressions("");
+        playProgressionName.value = "";
+        persistSavedProgressions(`Deleted “${saved.name}”.`);
+        return true;
       }
 
       function updateChordPracticeModeVisibility() {
@@ -14853,6 +15083,16 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       playRenameSetButton.addEventListener("click", () => renamePracticeSet());
       playDuplicateSetButton.addEventListener("click", () => duplicatePracticeSet());
       playDeleteSetButton.addEventListener("click", () => deletePracticeSet());
+      playSaveProgressionButton.addEventListener("click", saveCurrentProgression);
+      playLoadProgressionButton.addEventListener("click", () => loadProgression());
+      playRenameProgressionButton.addEventListener("click", () => renameProgression());
+      playDeleteProgressionButton.addEventListener("click", () => deleteProgression());
+      playSavedProgressionSelect.addEventListener("change", () => {
+        updateSavedProgressionControls();
+        const selected = playSavedProgressions.find(item => item.id === playSavedProgressionSelect.value);
+        playProgressionName.value = selected ? selected.name : "";
+        playSavedProgressionMessage.textContent = selected ? "Select Load to restore this progression." : "";
+      });
       playProgressionAddButton.addEventListener("click", () => addChordPracticeProgressionItem());
       playProgressionClearButton.addEventListener("click", clearChordPracticeProgression);
       playProgressionEditButton.addEventListener("click", focusChordPracticeProgressionEditor);
@@ -15378,6 +15618,11 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         updateChordPracticeSettingsVisibility,
         updateChordPracticeModeVisibility,
         applyChordPracticePreset,
+        saveCurrentProgression,
+        loadProgression,
+        renameProgression,
+        deleteProgression,
+        normalizeSavedProgression,
         buildChordPracticeProgression,
         buildAndRenderChordPracticeProgression,
         movementHintForExercises,
@@ -15574,6 +15819,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
       loadSelectedVoiceKey();
       loadVoiceSettings();
       loadSavedPracticeSets();
+      loadSavedProgressions();
       loadPlaySettings();
       loadFretboardSettings();
       loadKeyStudySettings();
