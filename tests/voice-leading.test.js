@@ -457,7 +457,7 @@ function createHarness(initialChoices = {}, existingStorage = new Map(), midiNav
     button.dataset.keyStudyPreset = value;
     return button;
   });
-  const chordPracticePresetButtons = ["major-minor", "sevenths", "recognition", "performance"].map(value => {
+  const chordPracticePresetButtons = ["major-minor", "sevenths"].map(value => {
     const button = new FakeElement(`chord-practice-preset-${value}`, "BUTTON");
     button.dataset.chordPracticePreset = value;
     return button;
@@ -3417,6 +3417,8 @@ playMidiChord(seventhMidi, seventhMidiExercise.voicing.midi);
 assert.strictEqual(seventhMidi.elements.playMidiFeedback.textContent, "✓ Correct", "four-note MIDI grading accepts the requested seventh chord voicing");
 
 const inversionVisibility = createHarness({ mode: "play" });
+assert(!html.includes('data-chord-practice-preset="recognition"'), "the redundant Recognition practice preset is not rendered");
+assert(!html.includes('data-chord-practice-preset="performance"'), "the redundant Performance practice preset is not rendered");
 assert.strictEqual(inversionVisibility.elements.playThirdInversionOption.hidden, true, "third inversion is hidden for a triad-only pool");
 inversionVisibility.elements.playChordDominant7.checked = true;
 inversionVisibility.elements.playChordDominant7.dispatch("change");
@@ -3428,6 +3430,42 @@ assert.strictEqual(inversionVisibility.elements.playSelectedRoots.hidden, true, 
 inversionVisibility.elements.playRootMode.value = "selected";
 inversionVisibility.elements.playRootMode.dispatch("change");
 assert.strictEqual(inversionVisibility.elements.playSelectedRoots.hidden, false, "Selected roots reveals the twelve-root checklist");
+
+const inversionChoiceStorage = new Map();
+const inversionChoiceUi = createHarness({ mode: "play" }, inversionChoiceStorage);
+inversionChoiceUi.elements.playInversionAny.checked = true;
+inversionChoiceUi.elements.playInversionAny.dispatch("change");
+assert(
+  ["playInversionRoot", "playInversionFirst", "playInversionSecond", "playInversionThird"]
+    .every(id => inversionChoiceUi.elements[id].checked === false),
+  "selecting Any clears every specific inversion"
+);
+assert.strictEqual(
+  JSON.parse(inversionChoiceStorage.get("play-the-chord-settings")).anyInversion,
+  true,
+  "the exclusive Any inversion choice persists"
+);
+const restoredExclusiveAnyUi = createHarness({ mode: "play" }, inversionChoiceStorage);
+assert.strictEqual(restoredExclusiveAnyUi.elements.playInversionAny.checked, true, "Any restores as the active inversion choice");
+assert(
+  ["playInversionRoot", "playInversionFirst", "playInversionSecond", "playInversionThird"]
+    .every(id => restoredExclusiveAnyUi.elements[id].checked === false),
+  "restoring Any keeps all specific inversions cleared"
+);
+inversionChoiceUi.elements.playInversionFirst.checked = true;
+inversionChoiceUi.elements.playInversionFirst.dispatch("change");
+assert.strictEqual(inversionChoiceUi.elements.playInversionAny.checked, false, "selecting a specific inversion clears Any");
+inversionChoiceUi.elements.playInversionFirst.checked = false;
+inversionChoiceUi.elements.playInversionFirst.dispatch("change");
+assert.strictEqual(inversionChoiceUi.elements.playInversionRoot.checked, false, "specific inversions may still be combined or cleared independently");
+inversionChoiceUi.elements.playInversionAny.checked = true;
+inversionChoiceUi.elements.playInversionAny.dispatch("change");
+inversionChoiceUi.elements.playInversionAny.checked = false;
+inversionChoiceUi.elements.playInversionAny.dispatch("change");
+assert.strictEqual(inversionChoiceUi.elements.playInversionRoot.checked, true, "turning off Any with no specific choice restores a valid root-position selection");
+
+const restoredAnyInversionUi = createHarness({ mode: "play" }, inversionChoiceStorage);
+assert.strictEqual(restoredAnyInversionUi.elements.playInversionAny.checked, false, "the latest explicit inversion choice restores instead of Any");
 
 const chordPracticeSummary = createHarness({ mode: "play" });
 chordPracticeSummary.elements.startButton.dispatch("click");

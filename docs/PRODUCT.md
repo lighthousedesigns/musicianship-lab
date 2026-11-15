@@ -66,7 +66,7 @@ The 16 practice chord types are:
 - dominant 7, major 7, minor 7, minor-major 7, half-diminished 7, diminished 7
 - add 9, minor add 9, major 6, minor 6
 
-Available inversions follow chord cardinality: triads expose root, first, and second inversion; four-note chords can expose third inversion. An **Any** inversion filter allows any supported inversion.
+Available inversions follow chord cardinality: triads expose root, first, and second inversion; four-note chords can expose third inversion. **Any** is mutually exclusive with the specific inversion checkboxes: selecting it clears root, first, second, and third, while selecting a specific inversion turns **Any** off. The two quick chord-pool presets are **Major and minor triads** and **Seventh chords**.
 
 Difficulty is Guided, Standard, or Challenge. Options include reveal after an incorrect answer, Roman numerals in Standard mode, response timing, exact-register performance grading, and piano-diagram labels as chord tones, note names, both, or none. Sessions show completed answers, first attempts, average response, current and longest streak, and elapsed length. Optional MIDI auto-advance advances after a correct answer.
 

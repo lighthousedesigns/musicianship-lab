@@ -3225,8 +3225,6 @@
             <div class="preset-row" aria-label="Chord Practice presets">
               <button type="button" data-chord-practice-preset="major-minor">Major and minor triads</button>
               <button type="button" data-chord-practice-preset="sevenths">Seventh chords</button>
-              <button type="button" data-chord-practice-preset="recognition">Recognition practice</button>
-              <button type="button" data-chord-practice-preset="performance">Performance practice</button>
             </div>
           </div>
 
@@ -10053,6 +10051,18 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         if (custom) renderCustomPracticeBuilder();
       }
 
+      function reconcileChordPracticeInversionSelection(changedInput) {
+        if (changedInput === playInversionAny) {
+          if (playInversionAny.checked) {
+            playInversionInputs.forEach(input => { input.checked = false; });
+          } else if (!playInversionInputs.some(input => input.checked)) {
+            playInversionInputs[0].checked = true;
+          }
+        } else if (playInversionInputs.includes(changedInput) && changedInput.checked) {
+          playInversionAny.checked = false;
+        }
+      }
+
       function applyChordPracticePreset(preset) {
         if (preset === "major-minor") {
           playChordTypeInputs.forEach(input => {
@@ -10068,10 +10078,6 @@ vii° — B Diminished — 2nd Inversion | F B D`;
           });
           playInversionInputs.forEach(input => { input.checked = true; });
           playInversionAny.checked = false;
-        } else if (preset === "recognition") {
-          playPracticeDirection.value = "mixed";
-        } else if (preset === "performance") {
-          playPracticeDirection.value = "chord-to-play";
         }
         updateChordPracticeSettingsVisibility();
         savePlaySettings();
@@ -10193,6 +10199,7 @@ vii° — B Diminished — 2nd Inversion | F B D`;
             input.checked = inversions.includes(Number(input.value));
           });
           playInversionAny.checked = Boolean(saved.anyInversion);
+          reconcileChordPracticeInversionSelection(playInversionAny);
           updateChordPracticeSettingsVisibility();
           renderCustomPracticeBuilder();
           updateChordPracticeModeVisibility();
@@ -15090,6 +15097,9 @@ vii° — B Diminished — 2nd Inversion | F B D`;
         ...playInversionInputs
       ].forEach(input => {
         input.addEventListener("change", () => {
+          if (input === playInversionAny || playInversionInputs.includes(input)) {
+            reconcileChordPracticeInversionSelection(input);
+          }
           updateChordPracticeSettingsVisibility();
           savePlaySettings();
         });
